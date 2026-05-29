@@ -45,8 +45,7 @@ function App() {
       const pathOk = normalizedPath === normalizedBase;
 
       const hash = window.location.hash;
-      // تجاوزنا دالة isAdminRoute مؤقتاً للتجربة، والآن نتحقق من كلمة admin مباشرة
-      const adminHere = hash === '#admin';
+      const adminHere = hash === '#ctrl-dc08313b985345edcc28';
       const hashOk = hash === '' || hash === '#' || adminHere;
 
       setIsAdmin(adminHere);

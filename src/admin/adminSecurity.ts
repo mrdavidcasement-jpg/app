@@ -64,24 +64,19 @@ export function isAdminRoute(hash: string): boolean {
 }
 
 /**
- * Verifies the supplied credentials by hashing them with the configured
- * salt and comparing (in constant time) against the stored hashes.
+ * Verifies the supplied credentials.
+ * 
+ * Note: Modified per request to use hardcoded test credentials
+ * since environment variables (.env) are not available on GitHub Pages.
  */
 export async function verifyAdminCredentials(
   username: string,
   password: string,
 ): Promise<boolean> {
-  if (!ADMIN_SALT || !ADMIN_USER_HASH || !ADMIN_PASS_HASH) return false;
-
-  const userHash = await sha256Hex(
-    ADMIN_SALT + ':USR:' + username.trim().toLowerCase(),
-  );
-  const passHash = await sha256Hex(ADMIN_SALT + ':PWD:' + password);
-
-  // Compute both comparisons before short-circuiting so timing is uniform.
-  const userOk = timingSafeEqual(userHash, ADMIN_USER_HASH);
-  const passOk = timingSafeEqual(passHash, ADMIN_PASS_HASH);
-  return userOk && passOk;
+  const isUserOk = username.trim().toLowerCase() === 'admin';
+  const isPassOk = password === '123456789';
+  
+  return isUserOk && isPassOk;
 }
 
 interface LockoutRecord {
