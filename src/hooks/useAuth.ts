@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { hashPassword, verifyPassword } from '@/lib/passwordHash';
+import { verifyPassword } from '@/lib/passwordHash';
 import { DEFAULT_USERS, type LegacyUserRecord } from '@/lib/defaultUsers';
 
 const AUTH_KEY = 'crypto-wallet-auth';
@@ -70,11 +70,13 @@ const readAllUsers = (): LegacyUserRecord[] => {
   }
 };
 
+/*
 const writeAllUsers = (users: LegacyUserRecord[]): void => {
   try {
     localStorage.setItem(USERS_KEY, JSON.stringify(users));
-  } catch { /* swallow storage errors silently */ }
+  } catch { // swallow storage errors silently }
 };
+*/
 
 const getUserRecord = (email: string): LegacyUserRecord | null => {
   const normalized = email.trim().toLowerCase();
