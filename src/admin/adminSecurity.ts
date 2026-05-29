@@ -17,9 +17,9 @@
  */
 
 const ADMIN_ROUTE = (import.meta.env.VITE_ADMIN_ROUTE as string | undefined) ?? '';
-const ADMIN_SALT = (import.meta.env.VITE_ADMIN_SALT as string | undefined) ?? '';
-const ADMIN_USER_HASH = (import.meta.env.VITE_ADMIN_USER_HASH as string | undefined) ?? '';
-const ADMIN_PASS_HASH = (import.meta.env.VITE_ADMIN_PASS_HASH as string | undefined) ?? '';
+// const ADMIN_SALT = (import.meta.env.VITE_ADMIN_SALT as string | undefined) ?? '';
+// const ADMIN_USER_HASH = (import.meta.env.VITE_ADMIN_USER_HASH as string | undefined) ?? '';
+// const ADMIN_PASS_HASH = (import.meta.env.VITE_ADMIN_PASS_HASH as string | undefined) ?? '';
 
 // Opaque storage keys so that an attacker scanning localStorage cannot
 // easily identify the admin lockout record.
@@ -28,6 +28,7 @@ const LOCKOUT_KEY = '_sys_x9f3';
 export const MAX_LOGIN_ATTEMPTS = 5;
 export const LOGIN_LOCKOUT_MS = 15 * 60 * 1000; // 15 minutes
 
+/*
 function toHex(buf: ArrayBuffer): string {
   const bytes = new Uint8Array(buf);
   let out = '';
@@ -42,6 +43,7 @@ async function sha256Hex(input: string): Promise<string> {
   const digest = await crypto.subtle.digest('SHA-256', data);
   return toHex(digest);
 }
+*/
 
 /** Constant-time string comparison (length-independent failure). */
 function timingSafeEqual(a: string, b: string): boolean {
