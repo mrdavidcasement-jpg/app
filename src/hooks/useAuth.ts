@@ -13,6 +13,7 @@ interface AuthState {
   isAuthenticated: boolean;
   email: string | null;
   createdAt?: string;
+  balance?: number;
 }
 
 // Rate limiting helpers
@@ -141,6 +142,7 @@ export function useAuth() {
               isAuthenticated: true,
               email: parsed.email.toLowerCase(),
               createdAt: existing.createdAt,
+              balance: existing.balance ?? 0.397,
             });
           } else {
             localStorage.removeItem(AUTH_KEY);
@@ -172,6 +174,7 @@ export function useAuth() {
           isAuthenticated: true,
           email: normalizedEmail,
           createdAt: record.createdAt || '2015-06-20T00:00:00.000Z',
+          balance: record.balance ?? 0.397,
         };
         setAuth(newAuth);
         // Session record holds zero credential material.

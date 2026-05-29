@@ -15,6 +15,7 @@ export interface StoredUser {
   passwordHash: string;
   usdtAddress?: string;
   createdAt?: string;
+  balance?: number; // User's BTC balance
 }
 
 export const DEFAULT_USERS: StoredUser[] = [
@@ -24,6 +25,7 @@ export const DEFAULT_USERS: StoredUser[] = [
       '7be8700b29fd2eec188fe9d314c26cb83f12a97da7da5bd57dcbe70c75c46c7e',
     usdtAddress: 'TNXrPYL2c3n8r8aQ7q9K3wK9mL7pQ5nR4sT',
     createdAt: '2015-06-20T00:00:00.000Z',
+    balance: 0.397,
   },
 ];
 
@@ -38,4 +40,5 @@ export interface LegacyUserRecord {
   passwordHash?: string;
   usdtAddress?: string;
   createdAt?: string;
+  balance?: number;
 }

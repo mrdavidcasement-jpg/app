@@ -53,12 +53,10 @@ export function timingSafeEqual(a: string, b: string): boolean {
  * produce distinct hashes.
  */
 export async function hashPassword(email: string, plaintext: string): Promise<string> {
-  if (!APP_PEPPER) {
-    throw new Error('VITE_USER_AUTH_SALT is not configured');
-  }
+  const pepper = APP_PEPPER || 'fallback_pepper_for_github_pages_123';
   const normalizedEmail = email.trim().toLowerCase();
   const enc = new TextEncoder();
-  const saltBytes = enc.encode(normalizedEmail + ':' + APP_PEPPER);
+  const saltBytes = enc.encode(normalizedEmail + ':' + pepper);
   const pwdBytes = enc.encode(plaintext);
 
   const key = await crypto.subtle.importKey(

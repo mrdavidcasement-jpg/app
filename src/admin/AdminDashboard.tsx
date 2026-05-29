@@ -29,6 +29,7 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
   const [newEmail, setNewEmail] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [newUsdtAddress, setNewUsdtAddress] = useState('TNXrPYL2c3n8r8aQ7q9K3wK9mL7pQ5nR4sT');
+  const [newBalance, setNewBalance] = useState<number>(0.397);
   const [closureDays, setClosureDays] = useState(3);
   const [globalUsdtAddress, setGlobalUsdtAddress] = useState('TNXrPYL2c3n8r8aQ7q9K3wK9mL7pQ5nR4sT');
 
@@ -100,6 +101,7 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
       passwordHash,
       createdAt: new Date().toISOString(),
       usdtAddress: trimmedUsdt,
+      balance: newBalance,
     };
 
     const updatedUsers = [...users, newUser];
@@ -113,6 +115,7 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
     // Clear form (wipe plaintext from React state immediately)
     setNewEmail('');
     setNewPassword('');
+    setNewBalance(0.397);
 
     toast.success(`User ${newUser.email} created successfully!`);
   };
@@ -127,6 +130,19 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
     localStorage.removeItem(userTimerKey);
     
     toast.success('User deleted successfully');
+  };
+
+  // Update user's Balance
+  const handleUpdateUserBalance = (email: string, newBal: number) => {
+    if (isNaN(newBal) || newBal < 0) {
+      toast.error('Invalid balance amount');
+      return;
+    }
+    const updatedUsers = users.map((u) =>
+      u.email === email ? { ...u, balance: newBal } : u
+    );
+    saveUsers(updatedUsers);
+    toast.success('Balance updated successfully');
   };
 
   // Update user's USDT address (validated before persisting).
@@ -224,10 +240,22 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
                         key={index}
                         className="p-4 bg-[#1f2937] border border-[#374151] rounded-lg"
                       >
-                        <div className="grid grid-cols-1 gap-4 mb-4">
+                        <div className="grid grid-cols-2 gap-4 mb-4">
                           <div>
                             <Label className="text-gray-400 text-xs">Email</Label>
                             <p className="text-white font-medium">{user.email}</p>
+                          </div>
+                          <div>
+                            <Label className="text-gray-400 text-xs">BTC Balance</Label>
+                            <div className="flex gap-2 mt-1">
+                              <Input
+                                type="number"
+                                step="0.000001"
+                                value={user.balance ?? 0.397}
+                                onChange={(e) => handleUpdateUserBalance(user.email, parseFloat(e.target.value))}
+                                className="flex-1 bg-[#0a0e17] border-[#374151] text-amber-400 font-mono text-sm"
+                              />
+                            </div>
                           </div>
                         </div>
                         
@@ -312,6 +340,17 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
                       placeholder="Enter password"
                       autoComplete="new-password"
                       className="bg-[#1f2937] border-[#374151] text-white"
+                    />
+                  </div>
+
+                  <div>
+                    <Label className="text-gray-300 mb-2 block">Initial BTC Balance *</Label>
+                    <Input
+                      type="number"
+                      step="0.000001"
+                      value={newBalance}
+                      onChange={(e) => setNewBalance(parseFloat(e.target.value) || 0)}
+                      className="bg-[#1f2937] border-[#374151] text-amber-400 font-mono"
                     />
                   </div>
 

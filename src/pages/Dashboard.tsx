@@ -18,6 +18,8 @@ import { SettingsModal } from '@/components/SettingsModal';
 import { useBitcoinPrice, calculateHistoricalValue } from '@/hooks/useBitcoinPrice';
 import { useTranslation } from '@/translations';
 
+import { useAuth } from '@/hooks/useAuth';
+
 interface Transaction {
   id: string;
   type: 'buy' | 'withdraw';
@@ -52,25 +54,26 @@ const TRANSACTIONS: Transaction[] = [
   },
 ];
 
-const CURRENT_BALANCE = 0.397;
-
-// Cryptocurrency data
-const CRYPTO_ASSETS = [
-  { id: 'bitcoin', symbol: 'BTC', name: 'Bitcoin', balance: CURRENT_BALANCE, icon: Bitcoin, color: 'text-orange-500', bgColor: 'bg-orange-500/20' },
-  { id: 'ethereum', symbol: 'ETH', name: 'Ethereum', balance: 0, icon: Hexagon, color: 'text-blue-500', bgColor: 'bg-blue-500/20' },
-  { id: 'usdt', symbol: 'USDT', name: 'Tether', balance: 0, icon: CircleDollarSign, color: 'text-green-500', bgColor: 'bg-green-500/20' },
-];
-
 export function Dashboard({ onWithdraw }: DashboardProps) {
   const { t } = useTranslation();
   const { price, priceChange, change24h } = useBitcoinPrice();
+  const { balance } = useAuth();
+  
+  const currentBalance = balance ?? 0.397;
+  const currentValue = currentBalance * price;
+
+  // Cryptocurrency data
+  const CRYPTO_ASSETS = [
+    { id: 'bitcoin', symbol: 'BTC', name: 'Bitcoin', balance: currentBalance, icon: Bitcoin, color: 'text-orange-500', bgColor: 'bg-orange-500/20' },
+    { id: 'ethereum', symbol: 'ETH', name: 'Ethereum', balance: 0, icon: Hexagon, color: 'text-blue-500', bgColor: 'bg-blue-500/20' },
+    { id: 'usdt', symbol: 'USDT', name: 'Tether', balance: 0, icon: CircleDollarSign, color: 'text-green-500', bgColor: 'bg-green-500/20' },
+  ];
+
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [selectedAsset, setSelectedAsset] = useState('bitcoin');
   const [showDepositModal, setShowDepositModal] = useState(false);
   const [showReceiveModal, setShowReceiveModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
-
-  const currentValue = CURRENT_BALANCE * price;
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -197,7 +200,7 @@ export function Dashboard({ onWithdraw }: DashboardProps) {
                       className="text-4xl md:text-5xl font-bold mb-2"
                       style={{ color: 'var(--text-primary)' }}
                     >
-                      {formatBTC(CURRENT_BALANCE)}
+                      {formatBTC(currentBalance)}
                     </div>
                     <div className={`text-xl md:text-2xl transition-colors duration-500 flex items-center gap-2 ${
                       priceChange === 'up' ? 'text-green-400' : 
