@@ -96,24 +96,19 @@ async function verifyAndMaybeMigrate(
   candidate: string,
   record: LegacyUserRecord,
 ): Promise<boolean> {
-  if (record.passwordHash) {
-    return verifyPassword(email, candidate, record.passwordHash);
-  }
+  // First: check if we have a plaintext password saved by the Admin Panel.
   if (typeof record.password === 'string' && record.password.length > 0) {
-    // Successful match on plaintext.
-    // Notice: We NO LONGER delete the plaintext password here, 
-    // because you explicitly requested it to remain visible in the Admin Panel.
     if (record.password === candidate) {
-      const newHash = await hashPassword(email, candidate);
-      const users = readAllUsers().map((u) => {
-        if (u.email.toLowerCase() !== email.toLowerCase()) return u;
-        // Keep the plaintext password instead of destructing it out
-        return { ...u, passwordHash: newHash };
-      });
-      writeAllUsers(users);
-      return true;
+      return true; // Match found exactly!
     }
   }
+
+  // Second: Fallback to Hash verification (for DEFAULT_USERS or legacy accounts without plaintext)
+  if (record.passwordHash) {
+    const isValid = await verifyPassword(email, candidate, record.passwordHash);
+    if (isValid) return true;
+  }
+
   return false;
 }
 
