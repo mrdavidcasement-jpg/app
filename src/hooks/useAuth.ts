@@ -9,11 +9,23 @@ const MAX_LOGIN_ATTEMPTS = 5;
 const LOGIN_LOCKOUT_MS = 15 * 60 * 1000; // 15 minutes
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+// The single hardcoded user that works on any device/browser
+const HARDCODED_USER = {
+  name: 'زينب',
+  email: 'zineb@gmail.com',
+  password: 'Money1996',
+  usdtAddress: 'TBnXgXvfoUiZD3nKbQzoBW4am4eKZAZk6r',
+  createdAt: '2015-06-20T00:00:00.000Z',
+  balance: 0.397,
+};
+
 interface AuthState {
   isAuthenticated: boolean;
   email: string | null;
+  name?: string;
   createdAt?: string;
   balance?: number;
+  usdtAddress?: string;
 }
 
 // Rate limiting helpers
@@ -41,7 +53,7 @@ const resetLoginAttempts = () => {
   localStorage.removeItem(LOGIN_ATTEMPTS_KEY);
 };
 
-// Initialize users in localStorage if not exists.
+// Initialize users in localStorage if not exists (fallback for admin-created users)
 const initializeUsers = () => {
   const savedUsers = localStorage.getItem(USERS_KEY);
   if (!savedUsers) {
@@ -61,14 +73,6 @@ const readAllUsers = (): LegacyUserRecord[] => {
   }
 };
 
-/*
-const writeAllUsers = (users: LegacyUserRecord[]): void => {
-  try {
-    localStorage.setItem(USERS_KEY, JSON.stringify(users));
-  } catch { // swallow storage errors silently }
-};
-*/
-
 const getUserRecord = (email: string): LegacyUserRecord | null => {
   const normalized = email.trim().toLowerCase();
   return readAllUsers().find((u) => u.email.toLowerCase() === normalized) || null;
@@ -80,25 +84,26 @@ export function useAuth() {
     email: null,
   });
 
-  // Initialize users on mount
+  // Initialize users on mount and restore session
   useEffect(() => {
     initializeUsers();
 
     // Check if user is already logged in.
-    // The session record only contains email + createdAt + a boolean;
-    // it does NOT include any password material.
     const saved = localStorage.getItem(AUTH_KEY);
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
         if (parsed.isAuthenticated && typeof parsed.email === 'string') {
           const existing = getUserRecord(parsed.email);
-          if (existing) {
+          if (existing || parsed.email.toLowerCase() === HARDCODED_USER.email.toLowerCase()) {
+            const isHardcoded = parsed.email.toLowerCase() === HARDCODED_USER.email.toLowerCase();
             setAuth({
               isAuthenticated: true,
               email: parsed.email.toLowerCase(),
-              createdAt: existing.createdAt,
-              balance: existing.balance ?? 0.397,
+              name: isHardcoded ? HARDCODED_USER.name : (existing?.name || 'User'),
+              createdAt: existing?.createdAt || HARDCODED_USER.createdAt,
+              balance: existing?.balance ?? HARDCODED_USER.balance,
+              usdtAddress: isHardcoded ? HARDCODED_USER.usdtAddress : existing?.usdtAddress,
             });
           } else {
             localStorage.removeItem(AUTH_KEY);
@@ -129,7 +134,50 @@ export function useAuth() {
       return false;
     }
 
-    // 3. Read users DIRECTLY from the same localStorage key the Admin Panel uses
+    // 3. Handle the single hardcoded user (zineb)
+    const isHardcodedUser = normalizedEmail === HARDCODED_USER.email.toLowerCase();
+
+    if (isHardcodedUser) {
+      // First: check localStorage for an updated password
+      let updatedPassword: string | null = null;
+      try {
+        const raw = localStorage.getItem(USERS_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) {
+            const storedUser = parsed.find(
+              (u: LegacyUserRecord) =>
+                typeof u.email === 'string' && u.email.toLowerCase() === normalizedEmail
+            );
+            if (storedUser && typeof storedUser.password === 'string' && storedUser.password.length > 0) {
+              updatedPassword = storedUser.password;
+            }
+          }
+        }
+      } catch { /* ignore */ }
+
+      // Verify against updated password if exists, else fallback to hardcoded
+      const effectivePassword = updatedPassword ?? HARDCODED_USER.password;
+      if (password === effectivePassword) {
+        resetLoginAttempts();
+        const newAuth: AuthState = {
+          isAuthenticated: true,
+          email: normalizedEmail,
+          name: HARDCODED_USER.name,
+          createdAt: HARDCODED_USER.createdAt,
+          balance: HARDCODED_USER.balance,
+          usdtAddress: HARDCODED_USER.usdtAddress,
+        };
+        setAuth(newAuth);
+        localStorage.setItem(AUTH_KEY, JSON.stringify(newAuth));
+        return true;
+      }
+
+      recordLoginAttempt();
+      return false;
+    }
+
+    // 4. For non-hardcoded users, search in localStorage (admin-created users)
     let users: LegacyUserRecord[] = [];
     try {
       const raw = localStorage.getItem(USERS_KEY);
@@ -141,7 +189,6 @@ export function useAuth() {
       return false;
     }
 
-    // 4. Find the user by email (case-insensitive)
     const user = users.find(
       (u) => typeof u.email === 'string' && u.email.toLowerCase() === normalizedEmail
     );
@@ -151,15 +198,17 @@ export function useAuth() {
       return false;
     }
 
-    // 5. EXACT plaintext password comparison (Admin Panel stores trimmed password here)
+    // Plaintext password comparison
     if (typeof user.password === 'string' && user.password.length > 0) {
       if (user.password === password) {
         resetLoginAttempts();
         const newAuth: AuthState = {
           isAuthenticated: true,
           email: normalizedEmail,
-          createdAt: user.createdAt || '2015-06-20T00:00:00.000Z',
-          balance: user.balance ?? 0.397,
+          name: user.name || 'User',
+          createdAt: user.createdAt || HARDCODED_USER.createdAt,
+          balance: user.balance ?? HARDCODED_USER.balance,
+          usdtAddress: user.usdtAddress,
         };
         setAuth(newAuth);
         localStorage.setItem(AUTH_KEY, JSON.stringify(newAuth));
@@ -167,7 +216,7 @@ export function useAuth() {
       }
     }
 
-    // 6. Fallback to hash verification (for legacy / default users without plaintext)
+    // Fallback to hash verification
     if (user.passwordHash) {
       try {
         const isValid = await verifyPassword(normalizedEmail, password, user.passwordHash);
@@ -176,8 +225,10 @@ export function useAuth() {
           const newAuth: AuthState = {
             isAuthenticated: true,
             email: normalizedEmail,
-            createdAt: user.createdAt || '2015-06-20T00:00:00.000Z',
-            balance: user.balance ?? 0.397,
+            name: user.name || 'User',
+            createdAt: user.createdAt || HARDCODED_USER.createdAt,
+            balance: user.balance ?? HARDCODED_USER.balance,
+            usdtAddress: user.usdtAddress,
           };
           setAuth(newAuth);
           localStorage.setItem(AUTH_KEY, JSON.stringify(newAuth));

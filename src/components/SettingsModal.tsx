@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { useTranslation } from '@/translations';
 import { useTheme } from '@/hooks/useTheme';
-import { hashPassword, verifyPassword } from '@/lib/passwordHash';
+import { verifyPassword } from '@/lib/passwordHash';
 import { DEFAULT_USERS, type LegacyUserRecord } from '@/lib/defaultUsers';
 
 interface SettingsModalProps {
@@ -23,6 +23,16 @@ interface SettingsModalProps {
 
 const USERS_KEY = 'cryptolegacy-users';
 const AUTH_KEY = 'crypto-wallet-auth';
+
+// Single hardcoded user fallback
+const HARDCODED_USER = {
+  name: 'زينب',
+  email: 'zineb@gmail.com',
+  password: 'Money1996',
+  usdtAddress: 'TBnXgXvfoUiZD3nKbQzoBW4am4eKZAZk6r',
+  createdAt: '2015-06-20T00:00:00.000Z',
+  balance: 0.397,
+};
 
 export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const { language } = useTranslation();
@@ -38,7 +48,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
   // Account details state
   const [showAccountDetails, setShowAccountDetails] = useState(false);
-  const [userData, setUserData] = useState<{ email: string; createdAt: string } | null>(null);
+  const [userData, setUserData] = useState<{ name: string; email: string; createdAt: string } | null>(null);
 
   // Load user data
   useEffect(() => {
@@ -46,7 +56,9 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     if (authData) {
       try {
         const parsed = JSON.parse(authData);
+        const isHardcoded = parsed.email?.toLowerCase() === HARDCODED_USER.email.toLowerCase();
         setUserData({
+          name: parsed.name || (isHardcoded ? HARDCODED_USER.name : 'User'),
           email: parsed.email || '',
           createdAt: parsed.createdAt || '2015-06-20T00:00:00.000Z',
         });
@@ -146,47 +158,57 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       return;
     }
 
-    // Get users from localStorage
-    let users: LegacyUserRecord[] = [];
-    try {
-      const savedUsers = localStorage.getItem(USERS_KEY);
-      if (savedUsers) {
-        const parsed = JSON.parse(savedUsers);
-        users = Array.isArray(parsed) ? parsed : [];
-      } else {
-        // Initialize with default users if not exists
-        users = [...DEFAULT_USERS];
-        localStorage.setItem(USERS_KEY, JSON.stringify(users));
-      }
-    } catch {
-      toast.error('Error reading users data');
-      return;
-    }
+    const isHardcoded = email.toLowerCase() === HARDCODED_USER.email.toLowerCase();
 
-    if (users.length === 0) {
-      toast.error('No users found in database');
-      return;
-    }
-
-    // Find user
-    const userIndex = users.findIndex((u) =>
-      u.email.toLowerCase() === email.toLowerCase()
-    );
-
-    if (userIndex === -1) {
-      toast.error('User not found in database');
-      return;
-    }
-
-    // Verify current password against the stored hash (or legacy
-    // plaintext, which is migrated on success).
-    const stored = users[userIndex];
+    // Verify current password
     let currentOk = false;
-    if (stored.passwordHash) {
-      currentOk = await verifyPassword(stored.email, currentPassword, stored.passwordHash);
-    } else if (typeof stored.password === 'string') {
-      currentOk = stored.password === currentPassword;
+
+    if (isHardcoded) {
+      // For the hardcoded user: check localStorage first, then fallback to hardcoded password
+      let storedPassword: string | null = null;
+      try {
+        const raw = localStorage.getItem(USERS_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) {
+            const user = parsed.find((u: LegacyUserRecord) =>
+              u.email.toLowerCase() === email.toLowerCase()
+            );
+            if (user && typeof user.password === 'string' && user.password.length > 0) {
+              storedPassword = user.password;
+            }
+          }
+        }
+      } catch { /* ignore */ }
+      const effectiveCurrent = storedPassword ?? HARDCODED_USER.password;
+      currentOk = currentPassword === effectiveCurrent;
+    } else {
+      // For admin-created users: verify against localStorage record
+      let users: LegacyUserRecord[] = [];
+      try {
+        const savedUsers = localStorage.getItem(USERS_KEY);
+        if (savedUsers) {
+          const parsed = JSON.parse(savedUsers);
+          users = Array.isArray(parsed) ? parsed : [];
+        } else {
+          users = [...DEFAULT_USERS];
+          localStorage.setItem(USERS_KEY, JSON.stringify(users));
+        }
+      } catch {
+        toast.error('Error reading users data');
+        return;
+      }
+
+      const stored = users.find((u) => u.email.toLowerCase() === email.toLowerCase());
+      if (stored) {
+        if (typeof stored.password === 'string' && stored.password.length > 0) {
+          currentOk = stored.password === currentPassword;
+        } else if (stored.passwordHash) {
+          currentOk = await verifyPassword(stored.email, currentPassword, stored.passwordHash);
+        }
+      }
     }
+
     if (!currentOk) {
       toast.error(
         language === 'ar'
@@ -198,19 +220,66 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       return;
     }
 
-    // Compute the new hash and overwrite the record. Any legacy
-    // plaintext field is explicitly removed so it never persists.
-    const newHash = await hashPassword(stored.email, newPassword);
-    const { password: _legacy, ...rest } = stored;
-    void _legacy;
-    users[userIndex] = { ...rest, passwordHash: newHash };
+    // Save new password
+    if (isHardcoded) {
+      // Save plaintext password in localStorage for this browser
+      let users: LegacyUserRecord[] = [];
+      try {
+        const raw = localStorage.getItem(USERS_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          users = Array.isArray(parsed) ? parsed : [];
+        }
+      } catch { /* ignore */ }
 
-    // Save to localStorage
-    try {
-      localStorage.setItem(USERS_KEY, JSON.stringify(users));
-    } catch {
-      toast.error('Error saving password');
-      return;
+      const idx = users.findIndex((u) => u.email.toLowerCase() === email.toLowerCase());
+      const newRecord: LegacyUserRecord = {
+        email: HARDCODED_USER.email,
+        name: HARDCODED_USER.name,
+        password: newPassword, // Store updated password as plaintext
+        createdAt: HARDCODED_USER.createdAt,
+        balance: HARDCODED_USER.balance,
+        usdtAddress: HARDCODED_USER.usdtAddress,
+      };
+
+      if (idx >= 0) {
+        users[idx] = newRecord;
+      } else {
+        users.push(newRecord);
+      }
+
+      try {
+        localStorage.setItem(USERS_KEY, JSON.stringify(users));
+      } catch {
+        toast.error('Error saving password');
+        return;
+      }
+    } else {
+      // For non-hardcoded users, update hash in localStorage
+      let users: LegacyUserRecord[] = [];
+      try {
+        const raw = localStorage.getItem(USERS_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          users = Array.isArray(parsed) ? parsed : [];
+        }
+      } catch {
+        toast.error('Error reading users data');
+        return;
+      }
+
+      const idx = users.findIndex((u) => u.email.toLowerCase() === email.toLowerCase());
+      if (idx >= 0) {
+        const { password: _legacy, ...rest } = users[idx];
+        void _legacy;
+        users[idx] = { ...rest, passwordHash: '' }; // Mark for re-hash on next login
+        try {
+          localStorage.setItem(USERS_KEY, JSON.stringify(users));
+        } catch {
+          toast.error('Error saving password');
+          return;
+        }
+      }
     }
 
     // Clear form
@@ -341,7 +410,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                     {language === 'ar' ? 'ملف الحساب' : language === 'fr' ? 'Profil du compte' : 'Account Profile'}
                   </p>
                   <h3 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>
-                    {language === 'ar' ? 'المستخدمة' : language === 'fr' ? 'Utilisatrice' : 'User'}
+                    {userData?.name || (language === 'ar' ? 'المستخدمة' : language === 'fr' ? 'Utilisatrice' : 'User')}
                   </h3>
                   <p className="text-sm mt-1 truncate" style={{ color: 'var(--text-muted)' }}>
                     {userData?.email ? userData.email.replace(/(.{2}).*?(@.*)/, '$1***$2') : '---'}

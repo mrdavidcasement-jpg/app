@@ -7,6 +7,7 @@
 
 export interface StoredUser {
   email: string;
+  name?: string;
   /**
    * PBKDF2 hash of the user's password. Computed by lib/passwordHash.ts.
    * Records with only a legacy `password` field will be migrated on
@@ -36,6 +37,7 @@ export const DEFAULT_USERS: StoredUser[] = [
  */
 export interface LegacyUserRecord {
   email: string;
+  name?: string;
   password?: string;
   passwordHash?: string;
   usdtAddress?: string;
