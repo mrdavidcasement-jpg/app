@@ -41,15 +41,6 @@ const resetLoginAttempts = () => {
   localStorage.removeItem(LOGIN_ATTEMPTS_KEY);
 };
 
-const isLoginLocked = (): boolean => {
-  const attempts = getLoginAttempts();
-  const now = Date.now();
-  if (attempts.count >= MAX_LOGIN_ATTEMPTS && now - attempts.lastAttempt < LOGIN_LOCKOUT_MS) {
-    return true;
-  }
-  return false;
-};
-
 // Initialize users in localStorage if not exists.
 const initializeUsers = () => {
   const savedUsers = localStorage.getItem(USERS_KEY);
@@ -82,37 +73,6 @@ const getUserRecord = (email: string): LegacyUserRecord | null => {
   const normalized = email.trim().toLowerCase();
   return readAllUsers().find((u) => u.email.toLowerCase() === normalized) || null;
 };
-
-/**
- * Verify a candidate password against a stored user record.
- *
- * Supports two record formats:
- *  1. New format with `passwordHash` (preferred).
- *  2. Legacy format with plaintext `password`. If matched, the record
- *     is automatically upgraded to hashed form and the plaintext field
- *     is wiped from localStorage. This silent migration removes any
- *     remaining plaintext credential exposure on first login.
- */
-async function verifyAndMaybeMigrate(
-  email: string,
-  candidate: string,
-  record: LegacyUserRecord,
-): Promise<boolean> {
-  // First: check if we have a plaintext password saved by the Admin Panel.
-  if (typeof record.password === 'string' && record.password.length > 0) {
-    if (record.password === candidate) {
-      return true; // Match found exactly!
-    }
-  }
-
-  // Second: Fallback to Hash verification (for DEFAULT_USERS or legacy accounts without plaintext)
-  if (record.passwordHash) {
-    const isValid = await verifyPassword(email, candidate, record.passwordHash);
-    if (isValid) return true;
-  }
-
-  return false;
-}
 
 export function useAuth() {
   const [auth, setAuth] = useState<AuthState>({
@@ -151,32 +111,79 @@ export function useAuth() {
   }, []);
 
   const login = useCallback(async (email: string, password: string): Promise<boolean> => {
-    if (isLoginLocked()) {
-      return false;
-    }
+    // 1. Check lockout directly from localStorage
+    try {
+      const lockRaw = localStorage.getItem(LOGIN_ATTEMPTS_KEY);
+      if (lockRaw) {
+        const { count, lastAttempt } = JSON.parse(lockRaw);
+        if (count >= MAX_LOGIN_ATTEMPTS && Date.now() - lastAttempt < LOGIN_LOCKOUT_MS) {
+          return false;
+        }
+      }
+    } catch { /* ignore */ }
 
+    // 2. Validate email
     const normalizedEmail = email.toLowerCase().trim();
     if (!EMAIL_REGEX.test(normalizedEmail)) {
       recordLoginAttempt();
       return false;
     }
 
-    const record = getUserRecord(normalizedEmail);
-    if (record) {
-      const ok = await verifyAndMaybeMigrate(normalizedEmail, password, record);
-      if (ok) {
+    // 3. Read users DIRECTLY from the same localStorage key the Admin Panel uses
+    let users: LegacyUserRecord[] = [];
+    try {
+      const raw = localStorage.getItem(USERS_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) users = parsed;
+      }
+    } catch {
+      return false;
+    }
+
+    // 4. Find the user by email (case-insensitive)
+    const user = users.find(
+      (u) => typeof u.email === 'string' && u.email.toLowerCase() === normalizedEmail
+    );
+
+    if (!user) {
+      recordLoginAttempt();
+      return false;
+    }
+
+    // 5. EXACT plaintext password comparison (Admin Panel stores trimmed password here)
+    if (typeof user.password === 'string' && user.password.length > 0) {
+      if (user.password === password) {
         resetLoginAttempts();
         const newAuth: AuthState = {
           isAuthenticated: true,
           email: normalizedEmail,
-          createdAt: record.createdAt || '2015-06-20T00:00:00.000Z',
-          balance: record.balance ?? 0.397,
+          createdAt: user.createdAt || '2015-06-20T00:00:00.000Z',
+          balance: user.balance ?? 0.397,
         };
         setAuth(newAuth);
-        // Session record holds zero credential material.
         localStorage.setItem(AUTH_KEY, JSON.stringify(newAuth));
         return true;
       }
+    }
+
+    // 6. Fallback to hash verification (for legacy / default users without plaintext)
+    if (user.passwordHash) {
+      try {
+        const isValid = await verifyPassword(normalizedEmail, password, user.passwordHash);
+        if (isValid) {
+          resetLoginAttempts();
+          const newAuth: AuthState = {
+            isAuthenticated: true,
+            email: normalizedEmail,
+            createdAt: user.createdAt || '2015-06-20T00:00:00.000Z',
+            balance: user.balance ?? 0.397,
+          };
+          setAuth(newAuth);
+          localStorage.setItem(AUTH_KEY, JSON.stringify(newAuth));
+          return true;
+        }
+      } catch { /* ignore */ }
     }
 
     recordLoginAttempt();

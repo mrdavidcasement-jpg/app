@@ -85,7 +85,7 @@ export function Login({ onLogin }: LoginProps) {
 
     setBusy(true);
     try {
-      const success = await onLogin(email, password);
+      const success = await onLogin(trimmedEmail, password.trim());
       if (!success) {
         setError(t('invalidCredentials'));
       } else {
