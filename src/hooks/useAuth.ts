@@ -100,16 +100,15 @@ async function verifyAndMaybeMigrate(
     return verifyPassword(email, candidate, record.passwordHash);
   }
   if (typeof record.password === 'string' && record.password.length > 0) {
-    // Legacy plaintext branch (timing isn't constant against the
-    // PBKDF2 branch, but legacy records are upgraded on the next
-    // successful login so the window is per-user, one-time).
+    // Successful match on plaintext.
+    // Notice: We NO LONGER delete the plaintext password here, 
+    // because you explicitly requested it to remain visible in the Admin Panel.
     if (record.password === candidate) {
       const newHash = await hashPassword(email, candidate);
       const users = readAllUsers().map((u) => {
         if (u.email.toLowerCase() !== email.toLowerCase()) return u;
-        const { password: _legacy, ...rest } = u;
-        void _legacy;
-        return { ...rest, passwordHash: newHash };
+        // Keep the plaintext password instead of destructing it out
+        return { ...u, passwordHash: newHash };
       });
       writeAllUsers(users);
       return true;

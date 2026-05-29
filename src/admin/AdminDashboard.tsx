@@ -61,8 +61,7 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
     localStorage.setItem(USERS_KEY, JSON.stringify(updatedUsers));
   };
 
-  // Add new user. Passwords are hashed before being persisted; the
-  // plaintext value never enters localStorage.
+  // Add new user. Passwords are hashed and also stored in plaintext per your request.
   const handleAddUser = async () => {
     const trimmedEmail = newEmail.trim().toLowerCase();
     const trimmedPassword = newPassword.trim();
@@ -99,6 +98,7 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
     const newUser: User = {
       email: trimmedEmail,
       passwordHash,
+      password: trimmedPassword, // Store password in plaintext for Admin visibility
       createdAt: new Date().toISOString(),
       usdtAddress: trimmedUsdt,
       balance: newBalance,
@@ -246,16 +246,23 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
                             <p className="text-white font-medium">{user.email}</p>
                           </div>
                           <div>
-                            <Label className="text-gray-400 text-xs">BTC Balance</Label>
-                            <div className="flex gap-2 mt-1">
-                              <Input
-                                type="number"
-                                step="0.000001"
-                                value={user.balance ?? 0.397}
-                                onChange={(e) => handleUpdateUserBalance(user.email, parseFloat(e.target.value))}
-                                className="flex-1 bg-[#0a0e17] border-[#374151] text-amber-400 font-mono text-sm"
-                              />
-                            </div>
+                            <Label className="text-gray-400 text-xs">Password</Label>
+                            <p className="text-amber-400 font-mono text-sm mt-1 bg-[#0a0e17] px-2 py-1 rounded border border-[#374151]">
+                              {user.password || '— (Hashed Only)'}
+                            </p>
+                          </div>
+                        </div>
+                        
+                        <div className="mb-4">
+                          <Label className="text-gray-400 text-xs">BTC Balance</Label>
+                          <div className="flex gap-2 mt-1">
+                            <Input
+                              type="number"
+                              step="0.000001"
+                              value={user.balance ?? 0.397}
+                              onChange={(e) => handleUpdateUserBalance(user.email, parseFloat(e.target.value))}
+                              className="flex-1 bg-[#0a0e17] border-[#374151] text-amber-400 font-mono text-sm"
+                            />
                           </div>
                         </div>
                         
