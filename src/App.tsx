@@ -12,7 +12,6 @@ import { Help } from '@/pages/Help';
 import { About } from '@/pages/About';
 import { NotFound } from '@/pages/NotFound';
 import { AdminApp } from '@/admin/AdminApp';
-import { isAdminRoute } from '@/admin/adminSecurity';
 import { useAuth } from '@/hooks/useAuth';
 import { useTranslation } from '@/translations';
 import { useTheme } from '@/hooks/useTheme';
