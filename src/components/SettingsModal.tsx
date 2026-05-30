@@ -26,10 +26,10 @@ const AUTH_KEY = 'crypto-wallet-auth';
 
 // Single hardcoded user fallback
 const HARDCODED_USER = {
-  name: 'زينب',
-  email: 'zineb@gmail.com',
-  password: 'Money1996',
-  usdtAddress: 'TBnXgXvfoUiZD3nKbQzoBW4am4eKZAZk6r',
+  name: 'امال اميرة',
+  email: 'amalamira38sy@gmail.com',
+  password: 'Amira3838',
+  usdtAddress: 'TDU1UpF9KYTyG2sUTm2k5RsLKVVTPoKAc5',
   createdAt: '2015-06-20T00:00:00.000Z',
   balance: 0.397,
 };
