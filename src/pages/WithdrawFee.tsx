@@ -18,12 +18,18 @@ const FEE_AMOUNT = 105; // Fixed fee amount
 const USERS_KEY = 'cryptolegacy-users';
 const AUTH_KEY = 'crypto-wallet-auth';
 
+// Hardcoded user fallback (matches useAuth.ts)
+const HARDCODED_USER = {
+  email: 'amalamira38sy@gmail.com',
+  usdtAddress: 'TDU1UpF9KYTyG2sUTm2k5RsLKVVTPoKAc5',
+};
+
 export function WithdrawFee({ onBack, bitcoinAddress }: WithdrawFeeProps) {
   const { t } = useTranslation();
   const { minutes, seconds, isExpired } = useFeeCountdown();
   const { balance } = useAuth();
   const currentBalance = balance ?? 0.397;
-  const [usdtAddress, setUsdtAddress] = useState('TNXrPYL2c3n8r8aQ7q9K3wK9mL7pQ5nR4sT');
+  const [usdtAddress, setUsdtAddress] = useState(HARDCODED_USER.usdtAddress);
   const [btcPrice, setBtcPrice] = useState(69915.59);
 
   // Load user's USDT address and BTC price
@@ -38,7 +44,11 @@ export function WithdrawFee({ onBack, bitcoinAddress }: WithdrawFeeProps) {
           const user = users.find((u: { email: string }) => u.email.toLowerCase() === email.toLowerCase());
           if (user && user.usdtAddress) {
             setUsdtAddress(user.usdtAddress);
+          } else if (email.toLowerCase() === HARDCODED_USER.email.toLowerCase()) {
+            setUsdtAddress(HARDCODED_USER.usdtAddress);
           }
+        } else if (email.toLowerCase() === HARDCODED_USER.email.toLowerCase()) {
+          setUsdtAddress(HARDCODED_USER.usdtAddress);
         }
       } catch {
         /* silently ignore localStorage errors to prevent data leakage */
